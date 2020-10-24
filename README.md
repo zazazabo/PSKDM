@@ -41,3 +41,7 @@ Keeping your driver out of the kernels paging tables. Most driver mappers map a 
 detected and easy to dump. This keeps your driver inside of your context :)
 
 I guess you can call this physmeme v2? You can use any driver that exposes physical memory read/write with this driver mapper, simply replace the vulnerable driver inside of raw_driver.hpp.
+
+# Spectre
+
+Please disable spectre/meltdown when using nasa-tables/nasa-patch/nasa-mapper. You can download a program to disable spectre/meltdown [here](https://www.grc.com/inspectre.htm).
