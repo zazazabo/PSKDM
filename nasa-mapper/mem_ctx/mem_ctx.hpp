@@ -2,9 +2,7 @@
 #include "../util/nt.hpp"
 #include "../kernel_ctx/kernel_ctx.h"
 
-// context switch causes the TLB to be flushed...
-#define FLUSH_TLB while(!SwitchToThread()) continue;
-
+#define PAGE_IN(addr, size) memset(addr, NULL, size)
 struct pt_entries
 {
 	std::pair<ppml4e, pml4e>	pml4;
@@ -17,8 +15,9 @@ namespace physmeme
 {
 	class mem_ctx
 	{
+		friend class mapper_ctx;
 	public:
-		explicit mem_ctx(kernel_ctx& k_ctx, DWORD pid);
+		explicit mem_ctx(kernel_ctx& k_ctx, DWORD pid = GetCurrentProcessId());
 		~mem_ctx();
 
 		//
@@ -57,8 +56,7 @@ namespace physmeme
 		template <class T>
 		T read_phys(void* addr)
 		{
-			if (!addr)
-				return {};
+			if (!addr) return {};
 			T buffer;
 			read_phys((void*)&buffer, addr, sizeof(T));
 			return buffer;
@@ -67,8 +65,7 @@ namespace physmeme
 		template <class T>
 		void write_phys(void* addr, const T& data)
 		{
-			if (!addr)
-				return;
+			if (!addr) return;
 			write_phys((void*)&data, addr, sizeof(T));
 		}
 
@@ -78,8 +75,7 @@ namespace physmeme
 		template <class T>
 		T read_virtual(void* addr)
 		{
-			if (!addr)
-				return {};
+			if (!addr) return {};
 			T buffer;
 			read_virtual((void*)&buffer, addr, sizeof(T));
 			return buffer;
@@ -102,19 +98,26 @@ namespace physmeme
 		void* set_page(void* addr);
 		void* get_page() const;
 		unsigned get_pid() const;
-		kernel_ctx* k_ctx;
+
+		pml4e operator[](std::uint16_t pml4_idx);
+		pdpte operator[](const std::pair<std::uint16_t, std::uint16_t>& entry_idx);
+		pde operator[](const std::tuple<std::uint16_t, std::uint16_t, std::uint16_t>& entry_idx);
+		pte operator[](const std::tuple<std::uint16_t, std::uint16_t, std::uint16_t, std::uint16_t>& entry_idx);
 	private:
 
 		//
 		// given an address fill pt entries with physical addresses and entry values.
 		//
 		bool hyperspace_entries(pt_entries& entries, void* addr);
-
-		std::pair<void*, pte> genesis_page;
-		std::pair<ppte, pte> genesis_cursor;
 		void* dirbase;
+		kernel_ctx* k_ctx;
+		std::uint16_t pml4e_index, pdpte_index, pde_index, pte_index, page_offset;
 
+		/// first == physical
+		/// second == virtual
+		std::pair<ppdpte, ppdpte> new_pdpt;
+		std::pair<ppde,ppde>      new_pd;
+		std::pair<ppte, ppte>     new_pt;
 		unsigned pid;
-		unsigned short page_offset;
 	};
 }

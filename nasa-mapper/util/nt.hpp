@@ -265,7 +265,7 @@ typedef union _pml4e
     struct
     {
         ULONG64 present : 1;          // Must be 1, region invalid if 0.
-        ULONG64 ReadWrite : 1;        // If 0, writes not allowed.
+        ULONG64 rw : 1;        // If 0, writes not allowed.
         ULONG64 user_supervisor : 1;   // If 0, user-mode accesses not allowed.
         ULONG64 PageWriteThrough : 1; // Determines the memory type used to access PDPT.
         ULONG64 page_cache : 1; // Determines the memory type used to access PDPT.
@@ -309,11 +309,11 @@ typedef union _pde
     struct
     {
         ULONG64 present : 1;          // Must be 1, region invalid if 0.
-        ULONG64 ReadWrite : 1;        // If 0, writes not allowed.
+        ULONG64 rw : 1;        // If 0, writes not allowed.
         ULONG64 user_supervisor : 1;   // If 0, user-mode accesses not allowed.
         ULONG64 PageWriteThrough : 1; // Determines the memory type used to access PT.
         ULONG64 page_cache : 1; // Determines the memory type used to access PT.
-        ULONG64 Accessed : 1;         // If 0, this entry has not been used for translation.
+        ULONG64 accessed : 1;         // If 0, this entry has not been used for translation.
         ULONG64 Ignored1 : 1;
         ULONG64 page_size : 1; // If 1, this entry maps a 2MB page.
         ULONG64 Ignored2 : 4;
@@ -331,7 +331,7 @@ typedef union _pte
     struct
     {
         ULONG64 present : 1;          // Must be 1, region invalid if 0.
-        ULONG64 ReadWrite : 1;        // If 0, writes not allowed.
+        ULONG64 rw : 1;        // If 0, writes not allowed.
         ULONG64 user_supervisor : 1;   // If 0, user-mode accesses not allowed.
         ULONG64 PageWriteThrough : 1; // Determines the memory type used to access the memory.
         ULONG64 page_cache : 1; // Determines the memory type used to access the memory.
