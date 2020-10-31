@@ -1,4 +1,5 @@
 #pragma once
+#include <thread>
 #include "../util/util.hpp"
 #include "../physmeme/physmeme.hpp"
 #include "../util/hook.hpp"

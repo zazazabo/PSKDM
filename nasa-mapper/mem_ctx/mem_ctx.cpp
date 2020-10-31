@@ -22,8 +22,8 @@ namespace physmeme
 					MEM_COMMIT | MEM_RESERVE,
 					PAGE_READWRITE
 				));
-		PAGE_IN(this->new_pdpt.second, PAGE_SIZE);
 
+		PAGE_IN(this->new_pdpt.second, PAGE_SIZE);
 		// get page table entries for new pdpt
 		pt_entries new_pdpt_entries;
 		hyperspace_entries(new_pdpt_entries, new_pdpt.second);

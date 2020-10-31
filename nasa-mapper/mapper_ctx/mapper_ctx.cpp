@@ -9,38 +9,32 @@ namespace physmeme
 	)
 		:
 		map_into(map_into),
-		map_from(map_from)
-	{}
+		map_from(map_from),
+		pml4_idx(0)
+	{
+		// find an empty pml4e location...
+		for (auto idx = 256u; idx > 0u; --idx)
+			if (!map_into.k_ctx->rkm<pml4e>(map_into.k_ctx->get_virtual(
+				(reinterpret_cast<::ppml4e>(map_into.get_dirbase()) + idx))).present)
+					this->pml4_idx = idx;
+	}
 
 	std::pair<void*, void*> mapper_ctx::map(std::vector<std::uint8_t>& raw_image)
 	{
 		const auto [drv_alloc, drv_entry_addr] = allocate_driver(raw_image);
 		auto [drv_ppml4e, drv_pml4e] = map_from.get_pml4e(drv_alloc);
 
-		//
-		// make the pde & pte's containing the driver user supervisor = false...
-		//
 		make_kernel_access(drv_alloc);
-
-		//
-		// removes the kernel memory from runtimebroker.exe
-		//
 		map_from.set_pml4e(drv_ppml4e, pml4e{ NULL });
 
-		//
-		// set new pml4e into specific process.
-		//
 		drv_pml4e.nx = false;
 		drv_pml4e.user_supervisor = false;
 
-		map_into.write_phys
-		(
-			reinterpret_cast<ppml4e*>(map_into.get_dirbase()) + PML4_MAP_INDEX,
-			drv_pml4e
-		);
+		map_into.write_phys(reinterpret_cast<ppml4e*>(
+			map_into.get_dirbase()) + this->pml4_idx, drv_pml4e);
 
 		virt_addr_t new_addr = { reinterpret_cast<void*>(drv_alloc) };
-		new_addr.pml4_index = PML4_MAP_INDEX;
+		new_addr.pml4_index = this->pml4_idx;
 		return { new_addr.value, drv_entry_addr };
 	}
 
@@ -78,9 +72,11 @@ namespace physmeme
 
 		const auto drv_alloc_base = 
 			reinterpret_cast<std::uintptr_t>(
-				direct::alloc_virtual_memory(
+				VirtualAllocEx(
 					process_handle,
+					nullptr,
 					drv_image.size(),
+					MEM_COMMIT | MEM_RESERVE,
 					PAGE_READWRITE
 				));
 
@@ -88,18 +84,18 @@ namespace physmeme
 			return {};
 
 		virt_addr_t new_addr = { reinterpret_cast<void*>(drv_alloc_base) };
-		new_addr.pml4_index = PML4_MAP_INDEX;
+		new_addr.pml4_index = this->pml4_idx;
 		drv_image.relocate(reinterpret_cast<std::uintptr_t>(new_addr.value));
 
-		//
 		// dont write nt headers...
-		//
-		const bool result = direct::write_virtual_memory
+		SIZE_T bytes_written = 0;
+		const bool result = WriteProcessMemory
 		(
 			process_handle,
 			reinterpret_cast<void*>((std::uint64_t)drv_alloc_base + drv_image.header_size()),
 			reinterpret_cast<void*>((std::uint64_t)drv_image.data() + drv_image.header_size()),
-			drv_image.size() - drv_image.header_size()
+			drv_image.size() - drv_image.header_size(),
+			&bytes_written
 		);
 
 		if (!CloseHandle(process_handle))

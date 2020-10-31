@@ -88,9 +88,6 @@
     <ClInclude Include="raw_driver.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="direct.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="map_driver.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>

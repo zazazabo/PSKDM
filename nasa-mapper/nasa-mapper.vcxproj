@@ -65,7 +65,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <TargetVersion>Windows10</TargetVersion>
     <PlatformToolset>v142</PlatformToolset>
-    <ConfigurationType>Application</ConfigurationType>
+    <ConfigurationType>StaticLibrary</ConfigurationType>
     <DriverType>KMDF</DriverType>
     <DriverTargetPlatform>Universal</DriverTargetPlatform>
     <SpectreMitigation>false</SpectreMitigation>
@@ -186,7 +186,8 @@
       </EntryPointSymbol>
     </Link>
     <Lib>
-      <AdditionalDependencies>direct.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>
+      </AdditionalDependencies>
       <LinkTimeCodeGeneration>false</LinkTimeCodeGeneration>
     </Lib>
     <ProjectReference>
@@ -204,7 +205,6 @@
     <ClCompile Include="pe_image\pe_image.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="direct.h" />
     <ClInclude Include="kernel_ctx\kernel_ctx.h" />
     <ClInclude Include="loadup.hpp" />
     <ClInclude Include="mapper_ctx\mapper_ctx.hpp" />
