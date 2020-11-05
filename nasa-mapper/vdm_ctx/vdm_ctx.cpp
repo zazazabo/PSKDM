@@ -4,18 +4,17 @@ namespace vdm
 {
 	vdm_ctx::vdm_ctx()
 	{
-		// already found the syscall's physical page...
+		// if we already found the syscall's physical page...
 		if (vdm::syscall_address.load())
 			return;
 
-		LoadLibraryA("user32.dll"); // required for win32u.dll...
-		vdm::dxgkrnl_buffer = reinterpret_cast<std::uint8_t*>(
-			LoadLibraryExA("drivers\\dxgkrnl.sys", NULL,
+		vdm::ntoskrnl = reinterpret_cast<std::uint8_t*>(
+			LoadLibraryExA("ntoskrnl.exe", NULL,
 				DONT_RESOLVE_DLL_REFERENCES));
 
 		nt_rva = reinterpret_cast<std::uint32_t>(
 			util::get_kmodule_export(
-				"dxgkrnl.sys",
+				"ntoskrnl.exe",
 				syscall_hook.first,
 				true
 			));
@@ -55,7 +54,7 @@ namespace vdm
 
 			// check the first 32 bytes of the syscall, if its the same, test that its the correct
 			// occurrence of these bytes (since dxgkrnl is loaded into physical memory at least 2 times now)...
-			if (!memcmp(page_data + nt_page_offset, dxgkrnl_buffer + nt_rva, 32))
+			if (!memcmp(page_data + nt_page_offset, ntoskrnl + nt_rva, 32))
 				if (valid_syscall(reinterpret_cast<void*>(address + page + nt_page_offset)))
 					syscall_address.store(
 						reinterpret_cast<void*>(
