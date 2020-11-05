@@ -1,36 +1,46 @@
 #include "mapper_ctx.hpp"
 
-namespace physmeme
+namespace nasa
 {
 	mapper_ctx::mapper_ctx
 	(
-		physmeme::mem_ctx& map_into,
-		physmeme::mem_ctx& map_from
+		nasa::mem_ctx& map_into,
+		nasa::mem_ctx& map_from
 	)
 		:
 		map_into(map_into),
 		map_from(map_from),
 		pml4_idx(0)
 	{
-		// find an empty pml4e location...
-		for (auto idx = 256u; idx > 0u; --idx)
-			if (!map_into.k_ctx->rkm<pml4e>(map_into.k_ctx->get_virtual(
-				(reinterpret_cast<::ppml4e>(map_into.get_dirbase()) + idx))).present)
-					this->pml4_idx = idx;
+		const auto map_into_pml4 = 
+			reinterpret_cast<ppml4e>(
+				map_into.set_page(map_into.get_dirbase()));
+
+		// look for an empty pml4e...
+		for (auto idx = 0u; idx < 256; ++idx)
+		{
+			if (!map_into_pml4[idx].value)
+			{
+				this->pml4_idx = idx;
+				break;
+			}
+		}
 	}
 
-	std::pair<void*, void*> mapper_ctx::map(std::vector<std::uint8_t>& raw_image)
+	auto mapper_ctx::map(std::vector<std::uint8_t>& raw_image) -> std::pair<void*, void*>
 	{
 		const auto [drv_alloc, drv_entry_addr] = allocate_driver(raw_image);
 		auto [drv_ppml4e, drv_pml4e] = map_from.get_pml4e(drv_alloc);
 
+		while (!SwitchToThread());
 		make_kernel_access(drv_alloc);
 		map_from.set_pml4e(drv_ppml4e, pml4e{ NULL });
+		while (!SwitchToThread());
 
 		drv_pml4e.nx = false;
 		drv_pml4e.user_supervisor = false;
 
-		map_into.write_phys(reinterpret_cast<ppml4e*>(
+		map_into.write_phys(reinterpret_cast<ppml4e>(
 			map_into.get_dirbase()) + this->pml4_idx, drv_pml4e);
 
 		virt_addr_t new_addr = { reinterpret_cast<void*>(drv_alloc) };
@@ -38,25 +48,14 @@ namespace physmeme
 		return { new_addr.value, drv_entry_addr };
 	}
 
-	bool mapper_ctx::call_entry(void* drv_entry, void** hook_handler) const
+	void mapper_ctx::call_entry(void* drv_entry, void** hook_handler) const
 	{
-		const auto result = map_into.k_ctx->syscall<NTSTATUS(__fastcall*)(void**)>(drv_entry, hook_handler);
-		return !result;
+		map_into.v_ctx->syscall<NTSTATUS(__fastcall*)(void**)>(drv_entry, hook_handler);
 	}
 
-	std::pair<void*, void*> mapper_ctx::allocate_driver(std::vector<std::uint8_t>& raw_image)
+	auto mapper_ctx::allocate_driver(std::vector<std::uint8_t>& raw_image) -> std::pair<void*, void*>
 	{
-		const auto _get_module = [&](std::string_view name)
-		{
-			return util::get_module_base(name.data());
-		};
-
-		const auto _get_export_name = [&](const char* base, const char* name)
-		{
-			return reinterpret_cast<std::uintptr_t>(util::get_module_export(base, name));
-		};
-
-		physmeme::pe_image drv_image(raw_image);
+		nasa::pe_image drv_image(raw_image);
 		const auto process_handle =
 			OpenProcess(
 				PROCESS_ALL_ACCESS,
@@ -67,9 +66,16 @@ namespace physmeme
 		if (!process_handle)
 			return {};
 
-		drv_image.fix_imports(_get_module, _get_export_name);
-		drv_image.map();
+		drv_image.fix_imports([&](const char* module_name, const char* export_name)
+		{
+			return reinterpret_cast<std::uintptr_t>(
+				util::get_kmodule_export(
+					module_name,
+					export_name
+				));
+		});
 
+		drv_image.map();
 		const auto drv_alloc_base = 
 			reinterpret_cast<std::uintptr_t>(
 				VirtualAllocEx(

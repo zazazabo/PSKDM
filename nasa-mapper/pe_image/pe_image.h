@@ -42,7 +42,7 @@ For more information, please refer to <http://unlicense.org>
 #include <variant>
 
 #pragma comment(lib, "Dbghelp.lib")
-namespace physmeme
+namespace nasa
 {
 	class pe_image
 	{
@@ -66,7 +66,7 @@ namespace physmeme
 			return (T*)::ImageRvaToVa(m_nt_headers, m_image.data(), offset, nullptr);
 		}
 
-		void fix_imports(const std::function<uintptr_t(std::string_view)> get_module, const std::function<uintptr_t(const char*, const char*)> get_function);
+		void fix_imports(const std::function<uintptr_t(const char*, const char*)> get_function);
 		void* data();
 		size_t header_size();
 	};

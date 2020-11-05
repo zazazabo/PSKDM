@@ -1,23 +1,19 @@
 #include "../mem_ctx/mem_ctx.hpp"
 #include "../pe_image/pe_image.h"
 
-namespace physmeme
+namespace nasa
 {
 	class mapper_ctx
 	{
 	public:
-		explicit mapper_ctx
-		(
-			physmeme::mem_ctx& map_into, 
-			physmeme::mem_ctx& map_from
-		);
-		std::pair<void*, void*> map(std::vector<std::uint8_t>& raw_image);
-		bool call_entry(void* drv_entry, void** hook_handler) const;
+		explicit mapper_ctx(nasa::mem_ctx& map_into, nasa::mem_ctx& map_from);
+		auto map(std::vector<std::uint8_t>& raw_image)->std::pair<void*, void*>;
+		void call_entry(void* drv_entry, void** hook_handler) const;
+
 	private:
 		std::uint16_t pml4_idx;
-		std::pair<void*, void*> allocate_driver(std::vector<std::uint8_t>& raw_image);
+		auto allocate_driver(std::vector<std::uint8_t>& raw_image)->std::pair<void*, void*>;
 		void make_kernel_access(void* drv_base);
-		physmeme::mem_ctx map_into;
-		physmeme::mem_ctx map_from;
+		nasa::mem_ctx map_into, map_from;
 	};
 }

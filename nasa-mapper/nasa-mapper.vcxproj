@@ -42,7 +42,7 @@
     <Configuration>Debug</Configuration>
     <Platform Condition="'$(Platform)' == ''">Win32</Platform>
     <RootNamespace>nasa_mapper</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.19041.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <ProjectName>nasa-mapper</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -198,24 +198,24 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="kernel_ctx\kernel_ctx.cpp" />
-    <ClCompile Include="map_driver.cpp" />
     <ClCompile Include="mapper_ctx\mapper_ctx.cpp" />
+    <ClCompile Include="map_driver.cpp" />
     <ClCompile Include="mem_ctx\mem_ctx.cpp" />
     <ClCompile Include="pe_image\pe_image.cpp" />
+    <ClCompile Include="vdm_ctx\vdm_ctx.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="kernel_ctx\kernel_ctx.h" />
-    <ClInclude Include="loadup.hpp" />
     <ClInclude Include="mapper_ctx\mapper_ctx.hpp" />
     <ClInclude Include="map_driver.hpp" />
     <ClInclude Include="mem_ctx\mem_ctx.hpp" />
     <ClInclude Include="pe_image\pe_image.h" />
-    <ClInclude Include="physmeme\physmeme.hpp" />
-    <ClInclude Include="raw_driver.hpp" />
     <ClInclude Include="util\hook.hpp" />
+    <ClInclude Include="util\loadup.hpp" />
     <ClInclude Include="util\nt.hpp" />
     <ClInclude Include="util\util.hpp" />
+    <ClInclude Include="vdm\raw_driver.hpp" />
+    <ClInclude Include="vdm\vdm.hpp" />
+    <ClInclude Include="vdm_ctx\vdm_ctx.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

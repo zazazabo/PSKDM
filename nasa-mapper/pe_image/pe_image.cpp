@@ -30,7 +30,7 @@ For more information, please refer to <http://unlicense.org>
 
 #include "pe_image.h"
 
-namespace physmeme
+namespace nasa
 {
 	pe_image::pe_image(std::vector<uint8_t>& image) : m_image(image)
 	{
@@ -153,7 +153,7 @@ namespace physmeme
 		return (T*)(uintptr_t)base + offset;
 	}
 
-	void pe_image::fix_imports(const std::function<uintptr_t(std::string_view)> get_module, const std::function<uintptr_t(const char*, const char*)> get_function) 
+	void pe_image::fix_imports(const std::function<uintptr_t(const char*, const char*)> get_function) 
 	{
 		ULONG size;
 		auto import_descriptors = static_cast<PIMAGE_IMPORT_DESCRIPTOR>(::ImageDirectoryEntryToData(m_image.data(), FALSE, IMAGE_DIRECTORY_ENTRY_IMPORT, &size));
@@ -166,7 +166,6 @@ namespace physmeme
 			IMAGE_THUNK_DATA* image_thunk_data;
 
 			const auto module_name = get_rva<char>(import_descriptors->Name);
-			const auto module_base = get_module(module_name);
 			if (import_descriptors->OriginalFirstThunk)
 				image_thunk_data = get_rva<IMAGE_THUNK_DATA>(import_descriptors->OriginalFirstThunk);
 			else

@@ -1,29 +1,33 @@
 #include "mem_ctx.hpp"
 
-namespace physmeme
+namespace nasa
 {
-	mem_ctx::mem_ctx(kernel_ctx& krnl_ctx, DWORD pid)
+	mem_ctx::mem_ctx(vdm::vdm_ctx& v_ctx, DWORD pid)
 		:
-		k_ctx(&krnl_ctx),
-		dirbase(get_dirbase(krnl_ctx, pid)),
+		v_ctx(&v_ctx),
+		dirbase(get_dirbase(v_ctx, pid)),
 		pid(pid)
 	{
-		// find an empty pml4e...
+		// find an empty pml4e inside of current processes pml4...
+		const auto current_pml4 =
+			v_ctx.get_virtual(reinterpret_cast<std::uintptr_t>(
+				get_dirbase(v_ctx, GetCurrentProcessId())));
+
 		for (auto idx = 100u; idx > 0u; --idx)
-			if (!k_ctx->rkm<pml4e>(k_ctx->get_virtual((reinterpret_cast<::ppml4e>(get_dirbase()) + idx))).present)
+			if (!v_ctx.rkm<pml4e>(current_pml4 + (idx * sizeof pml4e)).value)
 				this->pml4e_index = idx;
 
 		// allocate a pdpt
-		this->new_pdpt.second = 
+		this->new_pdpt.second =
 			reinterpret_cast<ppdpte>(
 				VirtualAlloc(
 					NULL,
-					PAGE_SIZE,
+					PAGE_4KB,
 					MEM_COMMIT | MEM_RESERVE,
 					PAGE_READWRITE
 				));
 
-		PAGE_IN(this->new_pdpt.second, PAGE_SIZE);
+		PAGE_IN(this->new_pdpt.second, PAGE_4KB);
 		// get page table entries for new pdpt
 		pt_entries new_pdpt_entries;
 		hyperspace_entries(new_pdpt_entries, new_pdpt.second);
@@ -36,38 +40,33 @@ namespace physmeme
 		set_pml4e(reinterpret_cast<::ppml4e>(get_dirbase()) + this->pml4e_index, new_pdpt_entries.pml4.second, true);
 
 		// make a new pd
-		this->new_pd.second = 
+		this->new_pd.second =
 			reinterpret_cast<ppde>(
 				VirtualAlloc(
 					NULL,
-					PAGE_SIZE,
+					PAGE_4KB,
 					MEM_COMMIT | MEM_RESERVE,
 					PAGE_READWRITE
 				));
-		PAGE_IN(this->new_pd.second, PAGE_SIZE);
 
-		//
+		PAGE_IN(this->new_pd.second, PAGE_4KB);
+
 		// get paging table entries for pd
-		//
 		pt_entries new_pd_entries;
-		hyperspace_entries(
-			new_pd_entries,
-			this->new_pd.second
-		);
+		hyperspace_entries(new_pd_entries, this->new_pd.second);
 		this->new_pd.first = reinterpret_cast<ppde>(new_pd_entries.pt.second.pfn << 12);
 
-		//
 		// make a new pt
-		//
-		this->new_pt.second = 
+		this->new_pt.second =
 			reinterpret_cast<ppte>(
 				VirtualAlloc(
-					NULL, 
-					PAGE_SIZE,
-					MEM_COMMIT | MEM_RESERVE, 
+					NULL,
+					PAGE_4KB,
+					MEM_COMMIT | MEM_RESERVE,
 					PAGE_READWRITE
 				));
-		PAGE_IN(this->new_pt.second, PAGE_SIZE);
+
+		PAGE_IN(this->new_pt.second, PAGE_4KB);
 
 		// get paging table entries for pt
 		pt_entries new_pt_entries;
@@ -150,13 +149,13 @@ namespace physmeme
 		return new_addr.value;
 	}
 
-	void* mem_ctx::get_dirbase(kernel_ctx& k_ctx, DWORD pid)
+	void* mem_ctx::get_dirbase(vdm::vdm_ctx& v_ctx, DWORD pid)
 	{
 		const auto peproc =
-			reinterpret_cast<std::uint64_t>(k_ctx.get_peprocess(pid));
+			reinterpret_cast<std::uint64_t>(v_ctx.get_peprocess(pid));
 
-		pte dirbase = k_ctx.rkm<pte>(
-			reinterpret_cast<void*>(peproc + 0x28));
+		const auto dirbase = 
+			v_ctx.rkm<pte>(peproc + 0x28);
 
 		return reinterpret_cast<void*>(dirbase.pfn << 12);
 	}
@@ -168,39 +167,34 @@ namespace physmeme
 
 		virt_addr_t virt_addr{ addr };
 		entries.pml4.first = reinterpret_cast<ppml4e>(dirbase) + virt_addr.pml4_index;
-		entries.pml4.second = k_ctx->rkm<pml4e>(
-			k_ctx->get_virtual(entries.pml4.first));
+		entries.pml4.second = v_ctx->rkm<pml4e>(
+			v_ctx->get_virtual(reinterpret_cast<std::uintptr_t>(entries.pml4.first)));
 
 		if (!entries.pml4.second.value)
 			return false;
 
 		entries.pdpt.first = reinterpret_cast<ppdpte>(entries.pml4.second.pfn << 12) + virt_addr.pdpt_index;
-		entries.pdpt.second = k_ctx->rkm<pdpte>(
-			k_ctx->get_virtual(entries.pdpt.first));
+		entries.pdpt.second = v_ctx->rkm<pdpte>(
+			v_ctx->get_virtual(reinterpret_cast<std::uintptr_t>(entries.pdpt.first)));
 
 		if (!entries.pdpt.second.value)
 			return false;
 
 		entries.pd.first = reinterpret_cast<ppde>(entries.pdpt.second.pfn << 12) + virt_addr.pd_index;
-		entries.pd.second = k_ctx->rkm<pde>(
-			k_ctx->get_virtual(entries.pd.first));
+		entries.pd.second = v_ctx->rkm<pde>(
+			v_ctx->get_virtual(reinterpret_cast<std::uintptr_t>(entries.pd.first)));
 
 		// if its a 2mb page
-		if (entries.pd.second.page_size)
+		if (entries.pd.second.large_page)
 		{
-			memcpy(
-				&entries.pt.second,
-				&entries.pd.second,
-				sizeof(pte)
-			);
-
+			entries.pt.second.value = entries.pd.second.value;
 			entries.pt.first = reinterpret_cast<ppte>(entries.pd.second.value);
 			return true;
 		}
 
 		entries.pt.first = reinterpret_cast<ppte>(entries.pd.second.pfn << 12) + virt_addr.pt_index;
-		entries.pt.second = k_ctx->rkm<pte>(
-			k_ctx->get_virtual(entries.pt.first));
+		entries.pt.second = v_ctx->rkm<pte>(
+			v_ctx->get_virtual(reinterpret_cast<std::uintptr_t>(entries.pt.first)));
 
 		if (!entries.pt.second.value)
 			return false;
@@ -214,7 +208,7 @@ namespace physmeme
 			return {};
 
 		pt_entries entries;
-		if (use_hyperspace ? hyperspace_entries(entries, addr) : (bool)virt_to_phys(entries, addr))
+		if ((use_hyperspace ? hyperspace_entries(entries, addr) : (bool)virt_to_phys(entries, addr)))
 			return { entries.pt.first, entries.pt.second };
 		return {};
 	}
@@ -225,7 +219,7 @@ namespace physmeme
 			return;
 
 		if (use_hyperspace)
-			k_ctx->wkm(k_ctx->get_virtual(addr), pte);
+			v_ctx->wkm(v_ctx->get_virtual(reinterpret_cast<std::uintptr_t>(addr)), pte);
 		else
 			write_phys(addr, pte);
 	}
@@ -236,7 +230,7 @@ namespace physmeme
 			return {};
 
 		pt_entries entries;
-		if (use_hyperspace ? hyperspace_entries(entries, addr) : (bool)virt_to_phys(entries, addr))
+		if ((use_hyperspace ? hyperspace_entries(entries, addr) : (bool)virt_to_phys(entries, addr)))
 			return { entries.pd.first, entries.pd.second };
 		return {};
 	}
@@ -247,7 +241,7 @@ namespace physmeme
 			return;
 
 		if (use_hyperspace)
-			k_ctx->wkm(k_ctx->get_virtual(addr), pde);
+			v_ctx->wkm(v_ctx->get_virtual(reinterpret_cast<std::uintptr_t>(addr)), pde);
 		else
 			write_phys(addr, pde);
 	}
@@ -258,7 +252,7 @@ namespace physmeme
 			return {};
 
 		pt_entries entries;
-		if (use_hyperspace ? hyperspace_entries(entries, addr) : (bool)virt_to_phys(entries, addr))
+		if ((use_hyperspace ? hyperspace_entries(entries, addr) : (bool)virt_to_phys(entries, addr)))
 			return { entries.pdpt.first, entries.pdpt.second };
 		return {};
 	}
@@ -269,7 +263,7 @@ namespace physmeme
 			return;
 
 		if (use_hyperspace)
-			k_ctx->wkm(k_ctx->get_virtual(addr), pdpte);
+			v_ctx->wkm(v_ctx->get_virtual(reinterpret_cast<std::uintptr_t>(addr)), pdpte);
 		else
 			write_phys(addr, pdpte);
 	}
@@ -280,7 +274,7 @@ namespace physmeme
 			return {};
 
 		pt_entries entries;
-		if (use_hyperspace ? hyperspace_entries(entries, addr) : (bool)virt_to_phys(entries, addr))
+		if ((use_hyperspace ? hyperspace_entries(entries, addr) : (bool)virt_to_phys(entries, addr)))
 			return { entries.pml4.first, entries.pml4.second };
 		return {};
 	}
@@ -291,7 +285,7 @@ namespace physmeme
 			return;
 
 		if (use_hyperspace)
-			k_ctx->wkm(k_ctx->get_virtual(addr), pml4e);
+			v_ctx->wkm(v_ctx->get_virtual(reinterpret_cast<std::uintptr_t>(addr)), pml4e);
 		else
 			write_phys(addr, pml4e);
 	}
@@ -302,7 +296,7 @@ namespace physmeme
 			return {};
 
 		virt_addr_t virt_addr{ addr };
-		if (size <= PAGE_SIZE - virt_addr.offset)
+		if (size <= PAGE_4KB - virt_addr.offset)
 		{
 			pt_entries entries;
 			read_phys
@@ -325,7 +319,7 @@ namespace physmeme
 			(
 				buffer,
 				addr,
-				PAGE_SIZE - virt_addr.offset
+				PAGE_4KB - virt_addr.offset
 			);
 
 			// forward work load
@@ -333,7 +327,7 @@ namespace physmeme
 			(
 				new_buffer_addr,
 				new_addr,
-				size - (PAGE_SIZE - virt_addr.offset)
+				size - (PAGE_4KB - virt_addr.offset)
 			);
 		}
 	}
@@ -344,7 +338,7 @@ namespace physmeme
 			return {};
 
 		virt_addr_t virt_addr{ addr };
-		if (size <= PAGE_SIZE - virt_addr.offset)
+		if (size <= PAGE_4KB - virt_addr.offset)
 		{
 			pt_entries entries;
 			write_phys
@@ -367,7 +361,7 @@ namespace physmeme
 			(
 				buffer,
 				addr,
-				PAGE_SIZE - virt_addr.offset
+				PAGE_4KB - virt_addr.offset
 			);
 
 			// forward work load
@@ -375,7 +369,7 @@ namespace physmeme
 			(
 				new_buffer_addr,
 				new_addr,
-				size - (PAGE_SIZE - virt_addr.offset)
+				size - (PAGE_4KB - virt_addr.offset)
 			);
 		}
 	}
@@ -386,8 +380,12 @@ namespace physmeme
 			return;
 
 		const auto temp_page = set_page(addr);
-		if (temp_page)
+		__try
+		{
 			memcpy(buffer, temp_page, size);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{}
 	}
 
 	void mem_ctx::write_phys(void* buffer, void* addr, std::size_t size)
@@ -396,8 +394,12 @@ namespace physmeme
 			return;
 
 		const auto temp_page = set_page(addr);
-		if (temp_page)
+		__try
+		{
 			memcpy(temp_page, buffer, size);
+		}
+		__except (EXCEPTION_EXECUTE_HANDLER)
+		{}
 	}
 
 	void* mem_ctx::virt_to_phys(pt_entries& entries, void* addr)
@@ -406,9 +408,8 @@ namespace physmeme
 			return {};
 
 		const virt_addr_t virt_addr{ addr };
-		//
+
 		// traverse paging tables
-		//
 		auto pml4e = read_phys<::pml4e>(
 			reinterpret_cast<ppml4e>(this->dirbase) + virt_addr.pml4_index);
 
