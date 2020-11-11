@@ -11,7 +11,7 @@
 
 * buck#0001 - contributed to nasa-tables which is inherited in this project...
 
-# nasa-mapper
+# PSKDM (Process-Context Specific Kernel Driver Mapper)
 
 Map a driver into specific processes only, with zero allocations in the kernel. The driver is allocated in a suspended runtimebroker.exe which is created with the sole
 purpose of containing allocated memory. The memory is then exposed to the context running this mapper code via a pml4e insertion at index 70. This keeps all memory
