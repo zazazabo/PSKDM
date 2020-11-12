@@ -7,10 +7,6 @@
     <img src="https://githacks.org/xerox/nasa-mapper/-/raw/baa56396025feca63e9fa85b7fc8c89efa34b45a/img/Windows%2010-Supported-green.svg"/>
 </div>
 
-# credit
-
-* buck#0001 - contributed to nasa-tables which is inherited in this project...
-
 # PSKDM (Process-Context Specific Kernel Driver Mapper)
 
 Map a driver into specific processes only, with zero allocations in the kernel. The driver is allocated in a suspended runtimebroker.exe which is created with the sole
@@ -40,3 +36,7 @@ Keeping your driver out of the kernels paging tables. Most driver mappers map a 
 detected and easy to dump. This keeps your driver inside of your context :)
 
 I guess you can call this physmeme v2? You can use any driver that exposes physical memory read/write with this driver mapper, simply replace the vulnerable driver inside of raw_driver.hpp.
+
+# credit
+
+* buck#0001 - contributed to nasa-tables which is inherited in this project...
