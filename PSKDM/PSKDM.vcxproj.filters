@@ -32,6 +32,9 @@
     <ClCompile Include="mapper_ctx\mapper_ctx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="set_mgr\set_mgr.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="util\hook.hpp">
@@ -65,6 +68,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="vdm_ctx\vdm_ctx.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="set_mgr\set_mgr.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
