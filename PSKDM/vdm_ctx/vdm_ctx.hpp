@@ -5,28 +5,35 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include <functional>
 #include "../vdm/vdm.hpp"
 
 namespace vdm
 {
 	// change this to whatever you want :^)
 	constexpr std::pair<const char*, const char*> syscall_hook = { "NtShutdownSystem", "ntdll.dll" };
-
 	inline std::atomic<bool> is_page_found = false;
 	inline std::atomic<void*> syscall_address = nullptr;
-
 	inline std::uint16_t nt_page_offset;
 	inline std::uint32_t nt_rva;
 	inline std::uint8_t* ntoskrnl;
 
+	using read_phys_t = std::function<decltype(vdm::read_phys)>;
+	using write_phys_t = std::function<decltype(vdm::write_phys)>;
+
 	class vdm_ctx
 	{
 	public:
-		vdm_ctx();
+		explicit vdm_ctx(read_phys_t& read_func, write_phys_t& write_func);
+		void set_read(read_phys_t& read_func);
+		void set_write(write_phys_t& write_func);
+		bool rkm(void* dst, void* src, std::size_t size);
+		bool wkm(void* dst, void* src, std::size_t size);
+
 		template <class T, class ... Ts>
 		__forceinline std::invoke_result_t<T, Ts...> syscall(void* addr, Ts ... args) const
 		{
-			static const auto proc = 
+			static const auto proc =
 				GetProcAddress(
 					LoadLibraryA(syscall_hook.second),
 					syscall_hook.first
@@ -46,12 +53,12 @@ namespace vdm
 
 			std::uint8_t orig_bytes[sizeof jmp_code];
 			*reinterpret_cast<void**>(jmp_code + 6) = addr;
-			vdm::read_phys(vdm::syscall_address.load(), orig_bytes, sizeof orig_bytes);
+			read_phys(vdm::syscall_address.load(), orig_bytes, sizeof orig_bytes);
 
 			// execute hook...
-			vdm::write_phys(vdm::syscall_address.load(), jmp_code, sizeof jmp_code);
+			write_phys(vdm::syscall_address.load(), jmp_code, sizeof jmp_code);
 			auto result = reinterpret_cast<T>(proc)(args ...);
-			vdm::write_phys(vdm::syscall_address.load(), orig_bytes, sizeof orig_bytes);
+			write_phys(vdm::syscall_address.load(), orig_bytes, sizeof orig_bytes);
 
 			syscall_mutex.unlock();
 			return result;
@@ -60,35 +67,15 @@ namespace vdm
 		template <class T>
 		__forceinline auto rkm(std::uintptr_t addr) -> T
 		{
-			static const auto ntoskrnl_memcpy =
-				util::get_kmodule_export("ntoskrnl.exe", "memcpy");
-
 			T buffer;
-			this->syscall<decltype(&memcpy)>(
-				ntoskrnl_memcpy, &buffer, (void*)addr, sizeof T);
-
+			rkm((void*)&buffer, (void*)addr, sizeof T);
 			return buffer;
 		}
 
 		template <class T>
-		__forceinline void wkm(std::uintptr_t addr, const T& value)
+		__forceinline auto wkm(std::uintptr_t addr, const T& value) -> bool
 		{
-			static const auto ntoskrnl_memcpy =
-				util::get_kmodule_export("ntoskrnl.exe", "memcpy");
-
-			this->syscall<decltype(&memcpy)>(
-				ntoskrnl_memcpy, (void*)addr, &value, sizeof T);
-		}
-
-		__forceinline auto get_virtual(std::uintptr_t addr) -> std::uintptr_t
-		{
-			static const auto ntoskrnl_get_virtual =
-				util::get_kmodule_export(
-					"ntoskrnl.exe",
-					"MmGetVirtualForPhysical");
-
-			return this->syscall<MmGetVirtualForPhysical>(
-				ntoskrnl_get_virtual, addr);
+			return wkm((void*)addr, (void*)&value, sizeof T);
 		}
 
 		__forceinline auto get_peprocess(std::uint32_t pid) -> PEPROCESS
@@ -106,8 +93,23 @@ namespace vdm
 			);
 			return peproc;
 		}
+
+		__forceinline auto get_virtual(std::uintptr_t addr) -> std::uintptr_t
+		{
+			static const auto ntoskrnl_get_virtual =
+				util::get_kmodule_export(
+					"ntoskrnl.exe",
+					"MmGetVirtualForPhysical");
+
+			return this->syscall<MmGetVirtualForPhysical>(
+				ntoskrnl_get_virtual, addr);
+		}
+
 	private:
 		void locate_syscall(std::uintptr_t begin, std::uintptr_t end) const;
 		bool valid_syscall(void* syscall_addr) const;
+
+		read_phys_t read_phys;
+		write_phys_t write_phys;
 	};
 }

@@ -1,5 +1,5 @@
 #pragma once
-#include "../vdm_ctx/vdm_ctx.h"
+#include "../vdm_ctx/vdm_ctx.hpp"
 
 using PETHREAD = PVOID;
 using PsSuspendThread = NTSTATUS(*)(PETHREAD, PULONG);
