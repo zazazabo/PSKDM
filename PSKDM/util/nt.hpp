@@ -97,7 +97,7 @@ typedef union _pml4e
     struct
     {
         std::uint64_t present : 1;          // Must be 1, region invalid if 0.
-        std::uint64_t ReadWrite : 1;        // If 0, writes not allowed.
+        std::uint64_t write : 1;        // If 0, writes not allowed.
         std::uint64_t user_supervisor : 1;   // If 0, user-mode accesses not allowed.
         std::uint64_t PageWriteThrough : 1; // Determines the memory type used to access PDPT.
         std::uint64_t page_cache : 1; // Determines the memory type used to access PDPT.
@@ -119,7 +119,7 @@ typedef union _pdpte
     struct
     {
         std::uint64_t present : 1;          // Must be 1, region invalid if 0.
-        std::uint64_t rw : 1;        // If 0, writes not allowed.
+        std::uint64_t write : 1;        // If 0, writes not allowed.
         std::uint64_t user_supervisor : 1;   // If 0, user-mode accesses not allowed.
         std::uint64_t PageWriteThrough : 1; // Determines the memory type used to access PD.
         std::uint64_t page_cache : 1; // Determines the memory type used to access PD.
@@ -141,7 +141,7 @@ typedef union _pde
     struct
     {
         std::uint64_t present : 1;          // Must be 1, region invalid if 0.
-        std::uint64_t rw : 1;        // If 0, writes not allowed.
+        std::uint64_t write : 1;        // If 0, writes not allowed.
         std::uint64_t user_supervisor : 1;   // If 0, user-mode accesses not allowed.
         std::uint64_t PageWriteThrough : 1; // Determines the memory type used to access PT.
         std::uint64_t page_cache : 1; // Determines the memory type used to access PT.
@@ -163,7 +163,7 @@ typedef union _pte
     struct
     {
         std::uint64_t present : 1;          // Must be 1, region invalid if 0.
-        std::uint64_t rw : 1;        // If 0, writes not allowed.
+        std::uint64_t write : 1;        // If 0, writes not allowed.
         std::uint64_t user_supervisor : 1;   // If 0, user-mode accesses not allowed.
         std::uint64_t PageWriteThrough : 1; // Determines the memory type used to access the memory.
         std::uint64_t page_cache : 1; // Determines the memory type used to access the memory.
@@ -175,7 +175,7 @@ typedef union _pte
         std::uint64_t pfn : 36; // The page frame number of the backing physical page.
         std::uint64_t reserved : 4;
         std::uint64_t Ignored3 : 7;
-        std::uint64_t ProtectionKey : 4;  // If the PKE bit of CR4 is set, determines the protection key.
+        std::uint64_t pk : 4;  // If the PKE bit of CR4 is set, determines the protection key.
         std::uint64_t nx : 1; // If 1, instruction fetches not allowed.
     };
 } pte, * ppte;

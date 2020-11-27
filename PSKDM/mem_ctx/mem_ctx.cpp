@@ -116,7 +116,7 @@ namespace nasa
 
 		pdpte new_pdpte = { NULL };
 		new_pdpte.present = true;
-		new_pdpte.rw = true;
+		new_pdpte.write = true;
 		new_pdpte.pfn = reinterpret_cast<std::uintptr_t>(new_pd.first) >> 12;
 		new_pdpte.user_supervisor = true;
 
@@ -125,7 +125,7 @@ namespace nasa
 
 		pde new_pde = { NULL };
 		new_pde.present = true;
-		new_pde.rw = true;
+		new_pde.write = true;
 		new_pde.pfn = reinterpret_cast<std::uintptr_t>(new_pt.first) >> 12;
 		new_pde.user_supervisor = true;
 
@@ -134,7 +134,7 @@ namespace nasa
 
 		pte new_pte = { NULL };
 		new_pte.present = true;
-		new_pte.rw = true;
+		new_pte.write = true;
 		new_pte.pfn = reinterpret_cast<std::uintptr_t>(addr) >> 12;
 		new_pte.user_supervisor = true;
 

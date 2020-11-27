@@ -17,7 +17,7 @@ namespace nasa
 				map_into->set_page(map_into->dirbase));
 
 		// look for an empty pml4e...
-		for (auto idx = 0u; idx < 256; ++idx)
+		for (auto idx = 100u; idx < 255; ++idx)
 		{
 			if (!map_into_pml4[idx].value)
 			{
@@ -38,6 +38,7 @@ namespace nasa
 
 		drv_pml4e.nx = false;
 		drv_pml4e.user_supervisor = false;
+		drv_pml4e.write = true;
 
 		// ensure we insert the pml4e...
 		while (!map_into->write_phys(
@@ -68,7 +69,8 @@ namespace nasa
 		if (!process_handle)
 			return { {}, {} };
 
-		drv_image.fix_imports([&](const char* module_name, const char* export_name)
+		drv_image.fix_imports(
+			[&](const char* module_name, const char* export_name)
 		{
 			return reinterpret_cast<std::uintptr_t>(
 				util::get_kmodule_export(
@@ -137,6 +139,7 @@ namespace nasa
 			{
 				pdpt_mapping[pdpt_idx].user_supervisor = false;
 				pdpt_mapping[pdpt_idx].nx = false;
+				pdpt_mapping[pdpt_idx].write = true;
 
 				auto pd_mapping = reinterpret_cast<ppde>(
 					map_from->set_page(reinterpret_cast<void*>(
@@ -149,6 +152,7 @@ namespace nasa
 					{
 						pd_mapping[pd_idx].user_supervisor = false;
 						pd_mapping[pd_idx].nx = false;
+						pd_mapping[pd_idx].write = true;
 
 						auto pt_mapping = reinterpret_cast<ppte>(
 							map_from->set_page(reinterpret_cast<void*>(
@@ -161,6 +165,7 @@ namespace nasa
 							{
 								pt_mapping[pt_idx].user_supervisor = false;
 								pt_mapping[pt_idx].nx = false;
+								pt_mapping[pt_idx].write = true;
 							}
 						}
 
