@@ -2,7 +2,6 @@
 #include "mapper_ctx/mapper_ctx.hpp"
 #include "vdm_ctx/vdm_ctx.h"
 #include "vdm/vdm.hpp"
-#include "set_mgr/set_mgr.hpp"
 
 namespace mapper
 {
@@ -27,13 +26,13 @@ namespace mapper
 		nasa::mem_ctx runtime_broker(v_ctx, runtime_broker_pid);
 		nasa::mapper_ctx mapper(my_proc, runtime_broker);
 
-		// shoot the tires off the set manager thread.....
-		set_mgr::stop_setmgr(v_ctx, set_mgr::get_setmgr_pethread(v_ctx));
 		const auto [drv_base, drv_entry] = mapper.map(drv_buffer);
+
 		if (!drv_base || !drv_entry)
 			return { mapper_error::init_failed, nullptr };
 
 		mapper.call_entry(drv_entry, entry_data);
+
 		if (!vdm::unload_drv(drv_handle, drv_key))
 			return { mapper_error::unload_error, nullptr };
 
