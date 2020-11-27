@@ -6,7 +6,7 @@
 
 namespace mapper
 {
-	auto map_driver(std::uint8_t* drv_image, std::size_t image_size, void** entry_data) -> std::pair<mapper_error, void*>
+	auto map_driver(std::uint32_t pid, std::uint8_t* drv_image, std::size_t image_size, void** entry_data) -> std::pair<mapper_error, void*>
 	{
 		std::vector<std::uint8_t> drv_buffer(drv_image, image_size + drv_image);
 		if (!drv_buffer.size())
@@ -16,10 +16,9 @@ namespace mapper
 		if (drv_handle == INVALID_HANDLE_VALUE || drv_key.empty())
 			return { mapper_error::load_error, nullptr };
 
-		const auto runtime_broker_pid = 
-			util::start_runtime_broker();
+		const auto context_pid = util::create_context();
 
-		if (!runtime_broker_pid)
+		if (!context_pid)
 			return { mapper_error::failed_to_create_proc, nullptr };	
 
 		vdm::read_phys_t _read_phys = 
@@ -35,16 +34,28 @@ namespace mapper
 		};
 
 		vdm::vdm_ctx v_ctx(_read_phys, _write_phys);
-		nasa::mem_ctx my_proc(&v_ctx, GetCurrentProcessId());
-		nasa::mem_ctx runtime_broker(&v_ctx, runtime_broker_pid);
-		nasa::mapper_ctx mapper(&my_proc, &runtime_broker);
+		nasa::mem_ctx desired_ctx(&v_ctx, GetCurrentProcessId());
+		nasa::mem_ctx zombie_ctx(&v_ctx, context_pid);
+		nasa::mapper_ctx mapper(&desired_ctx, &zombie_ctx);
 
+		// disable the working set manager thread
+		// this thread loops forever and tries to 
+		// page stuff to disk that is not accessed alot...
 		const auto result = 
 			set_mgr::stop_setmgr(v_ctx, 
 				set_mgr::get_setmgr_pethread(v_ctx));
 
 		if (result != STATUS_SUCCESS)
 			return { mapper_error::set_mgr_failure, nullptr };
+
+		// increment a process terminate counter
+		// then terminate the process... this makes it
+		// so the process can never actually fully close...
+		const auto [inc_ref_result, terminated] = 
+			v_ctx.zombie_process(context_pid);
+
+		if (inc_ref_result != STATUS_SUCCESS || !terminated)
+			return { mapper_error::zombie_process_failed, nullptr };
 
 		const auto [drv_base, drv_entry] = mapper.map(drv_buffer);
 		if (!drv_base || !drv_entry)

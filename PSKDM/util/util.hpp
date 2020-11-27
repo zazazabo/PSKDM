@@ -13,6 +13,8 @@
 #include <atomic>
 
 #include "nt.hpp"
+#define ZOMBIE_PROCESS "C:\\Windows\\System32\\RuntimeBroker.exe"
+
 namespace util
 {
 	//--- ranges of physical memory
@@ -48,7 +50,8 @@ namespace util
 			return true;
 	})();
 
-	__forceinline auto start_runtime_broker() -> std::uint32_t
+	// it doesnt matter what process we create, we just need a 64bit context...
+	__forceinline auto create_context() -> std::uint32_t
 	{
 		STARTUPINFO si;
 		PROCESS_INFORMATION pi;
@@ -57,9 +60,9 @@ namespace util
 		si.cb = sizeof(si);
 		ZeroMemory(&pi, sizeof(pi));
 
-		CreateProcessA(
+		if (!CreateProcessA(
 			NULL,
-			"C:\\Windows\\System32\\RuntimeBroker.exe",
+			ZOMBIE_PROCESS,
 			NULL,
 			NULL,
 			FALSE,
@@ -68,7 +71,8 @@ namespace util
 			NULL,
 			&si,
 			&pi
-		);
+		))
+			return {};
 
 		SuspendThread(pi.hThread);
 		return pi.dwProcessId;

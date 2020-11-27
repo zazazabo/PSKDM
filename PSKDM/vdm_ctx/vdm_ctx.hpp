@@ -105,6 +105,32 @@ namespace vdm
 				ntoskrnl_get_virtual, addr);
 		}
 
+		__forceinline auto zombie_process(std::uint32_t pid) -> std::pair<NTSTATUS, bool>
+		{
+			// zombie the the process by incrementing an exit counter
+			// then calling TerminateProcess so the process never closes...
+			const auto peproc =
+				reinterpret_cast<std::uintptr_t>(
+					this->get_peprocess(pid));
+
+			if (!peproc) return { {}, {} };
+			static const auto inc_ref_counter =
+				util::get_kmodule_export(
+					"ntoskrnl.exe",
+					"PsAcquireProcessExitSynchronization"
+				);
+
+			const auto terminated = 
+				TerminateProcess(OpenProcess(
+					PROCESS_TERMINATE, FALSE, pid), NULL);
+
+			const auto result = 
+				this->syscall<NTSTATUS(*)(std::uintptr_t)>(
+					inc_ref_counter, peproc);
+
+			return { result, terminated };
+		}
+
 	private:
 		void locate_syscall(std::uintptr_t begin, std::uintptr_t end) const;
 		bool valid_syscall(void* syscall_addr) const;
