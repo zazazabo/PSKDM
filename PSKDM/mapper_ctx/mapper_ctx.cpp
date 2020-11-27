@@ -4,8 +4,8 @@ namespace nasa
 {
 	mapper_ctx::mapper_ctx
 	(
-		nasa::mem_ctx* map_into,
-		nasa::mem_ctx* map_from
+		nasa::mem_ctx& map_into,
+		nasa::mem_ctx& map_from
 	)
 		:
 		map_into(map_into),
@@ -14,7 +14,7 @@ namespace nasa
 	{
 		const auto map_into_pml4 = 
 			reinterpret_cast<ppml4e>(
-				map_into->set_page(map_into->dirbase));
+				map_into.set_page(map_into.get_dirbase()));
 
 		// look for an empty pml4e...
 		for (auto idx = 0u; idx < 256; ++idx)
@@ -30,20 +30,18 @@ namespace nasa
 	auto mapper_ctx::map(std::vector<std::uint8_t>& raw_image) -> std::pair<void*, void*>
 	{
 		const auto [drv_alloc, drv_entry_addr] = allocate_driver(raw_image);
-		auto [drv_ppml4e, drv_pml4e] = map_from->get_pml4e(drv_alloc);
+		auto [drv_ppml4e, drv_pml4e] = map_from.get_pml4e(drv_alloc);
 
+		while (!SwitchToThread());
 		make_kernel_access(drv_alloc);
-		while (!map_from->set_pml4e(drv_ppml4e, pml4e{ NULL })) 
-			continue;
+		map_from.set_pml4e(drv_ppml4e, pml4e{ NULL });
+		while (!SwitchToThread());
 
 		drv_pml4e.nx = false;
 		drv_pml4e.user_supervisor = false;
 
-		// ensure we insert the pml4e...
-		while (!map_into->write_phys(
-			reinterpret_cast<ppml4e>(
-				map_into->dirbase) + this->pml4_idx, drv_pml4e))
-			continue;
+		map_into.write_phys(reinterpret_cast<ppml4e>(
+			map_into.get_dirbase()) + this->pml4_idx, drv_pml4e);
 
 		virt_addr_t new_addr = { reinterpret_cast<void*>(drv_alloc) };
 		new_addr.pml4_index = this->pml4_idx;
@@ -52,7 +50,7 @@ namespace nasa
 
 	void mapper_ctx::call_entry(void* drv_entry, void** hook_handler) const
 	{
-		map_into->v_ctx->syscall<NTSTATUS(__fastcall*)(void**)>(drv_entry, hook_handler);
+		map_into.v_ctx->syscall<NTSTATUS(__fastcall*)(void**)>(drv_entry, hook_handler);
 	}
 
 	auto mapper_ctx::allocate_driver(std::vector<std::uint8_t>& raw_image) -> std::pair<void*, void*>
@@ -62,11 +60,11 @@ namespace nasa
 			OpenProcess(
 				PROCESS_ALL_ACCESS,
 				FALSE,
-				map_from->pid
+				map_from.get_pid()
 			);
 
 		if (!process_handle)
-			return { {}, {} };
+			return {};
 
 		drv_image.fix_imports([&](const char* module_name, const char* export_name)
 		{
@@ -89,7 +87,7 @@ namespace nasa
 				));
 
 		if (!drv_alloc_base)
-			return { {}, {} };
+			return {};
 
 		virt_addr_t new_addr = { reinterpret_cast<void*>(drv_alloc_base) };
 		new_addr.pml4_index = this->pml4_idx;
@@ -112,23 +110,15 @@ namespace nasa
 		return
 		{ 
 			reinterpret_cast<void*>(drv_alloc_base),
-				reinterpret_cast<void*>(drv_image.entry_point() + 
-					reinterpret_cast<std::uintptr_t>(new_addr.value)) 
+			reinterpret_cast<void*>(drv_image.entry_point() + reinterpret_cast<std::uintptr_t>(new_addr.value)) 
 		};
 	}
 
 	void mapper_ctx::make_kernel_access(void* drv_base)
 	{
-		const auto [ppdpte, pdpte] = 
-			map_from->get_pdpte(drv_base);
-
-		auto ppdpte_phys = 
-			reinterpret_cast<void*>((
-				reinterpret_cast<std::uint64_t>(ppdpte) >> 12) << 12); // 0 the last 12 bits...
-
-		auto pdpt_mapping = 
-			reinterpret_cast<::ppdpte>(
-				map_from->set_page(ppdpte_phys));
+		const auto [ppdpte, pdpte] = map_from.get_pdpte(drv_base);
+		auto ppdpte_phys = reinterpret_cast<void*>((reinterpret_cast<std::uint64_t>(ppdpte) >> 12) << 12); // 0 the last 12 bits...
+		auto pdpt_mapping = reinterpret_cast<::ppdpte>(map_from.set_page(ppdpte_phys));
 
 		// set pdptes to CPL0 access only and executable...
 		for (auto pdpt_idx = 0u; pdpt_idx < 512; ++pdpt_idx)
@@ -139,7 +129,7 @@ namespace nasa
 				pdpt_mapping[pdpt_idx].nx = false;
 
 				auto pd_mapping = reinterpret_cast<ppde>(
-					map_from->set_page(reinterpret_cast<void*>(
+					map_from.set_page(reinterpret_cast<void*>(
 						pdpt_mapping[pdpt_idx].pfn << 12)));
 
 				// set pdes to CPL0 access only and executable...
@@ -151,7 +141,7 @@ namespace nasa
 						pd_mapping[pd_idx].nx = false;
 
 						auto pt_mapping = reinterpret_cast<ppte>(
-							map_from->set_page(reinterpret_cast<void*>(
+							map_from.set_page(reinterpret_cast<void*>(
 								pd_mapping[pd_idx].pfn << 12)));
 
 						// set ptes to CPL0 access only and executable...
@@ -166,14 +156,14 @@ namespace nasa
 
 						// set page back to pd...
 						pd_mapping = reinterpret_cast<ppde>(
-							map_from->set_page(reinterpret_cast<void*>(
+							map_from.set_page(reinterpret_cast<void*>(
 								pdpt_mapping[pdpt_idx].pfn << 12)));
 					}
 				}
 
 				// set page back to pdpt...
 				pdpt_mapping = reinterpret_cast<::ppdpte>(
-					map_from->set_page(ppdpte_phys));
+					map_from.set_page(ppdpte_phys));
 			}
 		}
 	}
