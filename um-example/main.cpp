@@ -20,10 +20,10 @@ int __cdecl main(int argc, char** argv)
         (
             driver_data.data(),
             driver_data.size(),
-            nullptr
+            nullptr // you can pass your structure here...
         );
 
-    std::printf("[+] driver mapping result -> 0x%x\n", result);
+    std::printf("[+] driver mapping result -> 0x%x (0 == STATUS_SUCCESS)\n", result);
     std::printf("[+] driver base address (usermode) -> 0x%p\n", driver_base);
     std::getchar();
 }
