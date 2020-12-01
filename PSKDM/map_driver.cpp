@@ -61,10 +61,6 @@ namespace mapper
 		if (!drv_base || !drv_entry)
 			return { mapper_error::init_failed, nullptr };
 
-		std::printf("[+] driver base -> 0x%p\n", drv_base);
-		std::printf("[+] driver entry -> 0x%p\n", drv_entry);
-		std::getchar();
-
 		mapper.call_entry(drv_entry, entry_data);
 		if (!vdm::unload_drv(drv_handle, drv_key))
 			return { mapper_error::unload_error, nullptr };

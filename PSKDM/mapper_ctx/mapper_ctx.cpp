@@ -33,8 +33,6 @@ namespace nasa
 		auto [drv_ppml4e, drv_pml4e] = map_from->get_pml4e(drv_alloc);
 
 		make_kernel_access(drv_alloc);
-		map_from->set_pml4e(drv_ppml4e, pml4e{ NULL });
-
 		drv_pml4e.present = true;
 		drv_pml4e.nx = false;
 		drv_pml4e.user_supervisor = false;
