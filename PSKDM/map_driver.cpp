@@ -34,8 +34,8 @@ namespace mapper
 		};
 
 		vdm::vdm_ctx v_ctx(_read_phys, _write_phys);
-		nasa::mem_ctx desired_ctx(&v_ctx, GetCurrentProcessId());
-		nasa::mem_ctx zombie_ctx(&v_ctx, context_pid);
+		ptm::ptm_ctx desired_ctx(&v_ctx, GetCurrentProcessId());
+		ptm::ptm_ctx zombie_ctx(&v_ctx, context_pid);
 		nasa::mapper_ctx mapper(&desired_ctx, &zombie_ctx);
 
 		// disable the working set manager thread
@@ -60,6 +60,10 @@ namespace mapper
 		const auto [drv_base, drv_entry] = mapper.map(drv_buffer);
 		if (!drv_base || !drv_entry)
 			return { mapper_error::init_failed, nullptr };
+
+		std::printf("[+] driver base -> 0x%p\n", drv_base);
+		std::printf("[+] driver entry -> 0x%p\n", drv_entry);
+		std::getchar();
 
 		mapper.call_entry(drv_entry, entry_data);
 		if (!vdm::unload_drv(drv_handle, drv_key))

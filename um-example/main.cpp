@@ -26,6 +26,6 @@ int __cdecl main(int argc, char** argv)
         );
 
     std::printf("[+] driver mapping result -> 0x%x (0 == mapper_error::error_success)\n", result);
-    std::printf("[+] driver base address (usermode) -> 0x%p\n", driver_base);
+    std::printf("[+] driver base address -> 0x%p\n", driver_base);
     std::getchar();
 }

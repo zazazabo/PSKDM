@@ -200,16 +200,16 @@
   <ItemGroup>
     <ClCompile Include="mapper_ctx\mapper_ctx.cpp" />
     <ClCompile Include="map_driver.cpp" />
-    <ClCompile Include="mem_ctx\mem_ctx.cpp" />
     <ClCompile Include="pe_image\pe_image.cpp" />
+    <ClCompile Include="ptm_ctx\ptm_ctx.cpp" />
     <ClCompile Include="set_mgr\set_mgr.cpp" />
     <ClCompile Include="vdm_ctx\vdm_ctx.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mapper_ctx\mapper_ctx.hpp" />
     <ClInclude Include="map_driver.hpp" />
-    <ClInclude Include="mem_ctx\mem_ctx.hpp" />
     <ClInclude Include="pe_image\pe_image.h" />
+    <ClInclude Include="ptm_ctx\ptm_ctx.hpp" />
     <ClInclude Include="set_mgr\set_mgr.hpp" />
     <ClInclude Include="util\hook.hpp" />
     <ClInclude Include="util\loadup.hpp" />

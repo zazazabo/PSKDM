@@ -4,8 +4,8 @@ namespace nasa
 {
 	mapper_ctx::mapper_ctx
 	(
-		nasa::mem_ctx* map_into,
-		nasa::mem_ctx* map_from
+		ptm::ptm_ctx* map_into,
+		ptm::ptm_ctx* map_from
 	)
 		:
 		map_into(map_into),
@@ -17,7 +17,7 @@ namespace nasa
 				map_into->set_page(map_into->dirbase));
 
 		// look for an empty pml4e...
-		for (auto idx = 100u; idx < 255; ++idx)
+		for (auto idx = 255u; idx < 511; ++idx)
 		{
 			if (!map_into_pml4[idx].value)
 			{
@@ -33,21 +33,26 @@ namespace nasa
 		auto [drv_ppml4e, drv_pml4e] = map_from->get_pml4e(drv_alloc);
 
 		make_kernel_access(drv_alloc);
-		while (!map_from->set_pml4e(drv_ppml4e, pml4e{ NULL })) 
-			continue;
+		map_from->set_pml4e(drv_ppml4e, pml4e{ NULL });
 
+		drv_pml4e.present = true;
 		drv_pml4e.nx = false;
 		drv_pml4e.user_supervisor = false;
 		drv_pml4e.write = true;
 
-		// ensure we insert the pml4e...
-		while (!map_into->write_phys(
+		const auto map_into_pml4 = 
 			reinterpret_cast<ppml4e>(
-				map_into->dirbase) + this->pml4_idx, drv_pml4e))
-			continue;
+				map_into->set_page(map_into->dirbase));
 
-		virt_addr_t new_addr = { reinterpret_cast<void*>(drv_alloc) };
+		map_into_pml4[this->pml4_idx] = drv_pml4e;
+		virt_addr_t old_addr = { reinterpret_cast<void*>(drv_alloc) };
+		virt_addr_t new_addr = { reinterpret_cast<void*>(MAXULONG64) };
+
 		new_addr.pml4_index = this->pml4_idx;
+		new_addr.pdpt_index = old_addr.pdpt_index;
+		new_addr.pd_index = old_addr.pd_index;
+		new_addr.pt_index = old_addr.pt_index;
+		new_addr.offset = old_addr.offset;
 		return { new_addr.value, drv_entry_addr };
 	}
 
@@ -93,8 +98,15 @@ namespace nasa
 		if (!drv_alloc_base)
 			return { {}, {} };
 
-		virt_addr_t new_addr = { reinterpret_cast<void*>(drv_alloc_base) };
+		virt_addr_t old_addr = { reinterpret_cast<void*>(drv_alloc_base) };
+		virt_addr_t new_addr = { reinterpret_cast<void*>(MAXULONG64) };
+
 		new_addr.pml4_index = this->pml4_idx;
+		new_addr.pdpt_index = old_addr.pdpt_index;
+		new_addr.pd_index = old_addr.pd_index;
+		new_addr.pt_index = old_addr.pt_index;
+		new_addr.offset = old_addr.offset;
+
 		drv_image.relocate(reinterpret_cast<std::uintptr_t>(new_addr.value));
 
 		// dont write nt headers...

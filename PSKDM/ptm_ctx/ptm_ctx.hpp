@@ -2,13 +2,13 @@
 #include "../util/nt.hpp"
 #include "../vdm_ctx/vdm_ctx.hpp"
 
-namespace nasa
+namespace ptm
 {
-	class mem_ctx
+	class ptm_ctx
 	{
 	public:
-		explicit mem_ctx(vdm::vdm_ctx* v_ctx, std::uint32_t pid = GetCurrentProcessId());
-		~mem_ctx();
+		explicit ptm_ctx(vdm::vdm_ctx* v_ctx, std::uint32_t pid = GetCurrentProcessId());
+		~ptm_ctx();
 
 		auto get_pte(void* addr, bool use_hyperspace = false) -> std::pair<ppte, pte>;
 		bool set_pte(void* addr, const ::pte& pte, bool use_hyperspace = false);

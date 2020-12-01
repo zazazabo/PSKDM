@@ -1,8 +1,8 @@
-#include "mem_ctx.hpp"
+#include "ptm_ctx.hpp"
 
-namespace nasa
+namespace ptm
 {
-	mem_ctx::mem_ctx(vdm::vdm_ctx* v_ctx, std::uint32_t pid)
+	ptm_ctx::ptm_ctx(vdm::vdm_ctx* v_ctx, std::uint32_t pid)
 		:
 		v_ctx(v_ctx),
 		dirbase(get_dirbase(*v_ctx, pid)),
@@ -89,14 +89,14 @@ namespace nasa
 				new_pt_entries.pt.second.pfn << 12);
 	}
 
-	mem_ctx::~mem_ctx()
+	ptm_ctx::~ptm_ctx()
 	{
 		const auto pml4 = 
 			reinterpret_cast<ppml4e>(
 				set_page(dirbase))[pml4e_index] = pml4e{ NULL };
 	}
 
-	void* mem_ctx::set_page(void* addr)
+	void* ptm_ctx::set_page(void* addr)
 	{
 		++pte_index;
 		if (pte_index > 511)
@@ -146,7 +146,7 @@ namespace nasa
 		return get_page();
 	}
 
-	void* mem_ctx::get_page() const
+	void* ptm_ctx::get_page() const
 	{
 		// builds a new address given the state of all table indexes
 		virt_addr_t new_addr;
@@ -180,7 +180,7 @@ namespace nasa
 		return new_addr.value;
 	}
 
-	void* mem_ctx::get_dirbase(vdm::vdm_ctx& v_ctx, DWORD pid)
+	void* ptm_ctx::get_dirbase(vdm::vdm_ctx& v_ctx, DWORD pid)
 	{
 		const auto peproc =
 			reinterpret_cast<std::uint64_t>(
@@ -190,7 +190,7 @@ namespace nasa
 			v_ctx.rkm<pte>(peproc + 0x28).pfn << 12);
 	}
 
-	bool mem_ctx::hyperspace_entries(pt_entries& entries, void* addr)
+	bool ptm_ctx::hyperspace_entries(pt_entries& entries, void* addr)
 	{
 		if (!addr || !dirbase)
 			return false;
@@ -232,7 +232,7 @@ namespace nasa
 		return true;
 	}
 
-	auto mem_ctx::get_pte(void* addr, bool use_hyperspace) -> std::pair<ppte, pte>
+	auto ptm_ctx::get_pte(void* addr, bool use_hyperspace) -> std::pair<ppte, pte>
 	{
 		if (!dirbase || !addr)
 			return { {}, {} };
@@ -244,7 +244,7 @@ namespace nasa
 		return { {}, {} };
 	}
 
-	bool mem_ctx::set_pte(void* addr, const ::pte& pte, bool use_hyperspace)
+	bool ptm_ctx::set_pte(void* addr, const ::pte& pte, bool use_hyperspace)
 	{
 		if (!dirbase || !addr)
 			return false;
@@ -257,7 +257,7 @@ namespace nasa
 		return write_phys(addr, pte);
 	}
 
-	auto mem_ctx::get_pde(void* addr, bool use_hyperspace) -> std::pair<ppde, pde>
+	auto ptm_ctx::get_pde(void* addr, bool use_hyperspace) -> std::pair<ppde, pde>
 	{
 		if (!dirbase || !addr)
 			return { {}, {} };
@@ -268,7 +268,7 @@ namespace nasa
 		return { {}, {} };
 	}
 
-	bool mem_ctx::set_pde(void* addr, const ::pde& pde, bool use_hyperspace)
+	bool ptm_ctx::set_pde(void* addr, const ::pde& pde, bool use_hyperspace)
 	{
 		if (!dirbase || !addr)
 			return false;
@@ -281,7 +281,7 @@ namespace nasa
 		return write_phys(addr, pde);
 	}
 
-	auto mem_ctx::get_pdpte(void* addr, bool use_hyperspace) -> std::pair<ppdpte, pdpte>
+	auto ptm_ctx::get_pdpte(void* addr, bool use_hyperspace) -> std::pair<ppdpte, pdpte>
 	{
 		if (!dirbase || !addr)
 			return { {}, {} };
@@ -293,7 +293,7 @@ namespace nasa
 		return { {}, {} };
 	}
 
-	bool mem_ctx::set_pdpte(void* addr, const ::pdpte& pdpte, bool use_hyperspace)
+	bool ptm_ctx::set_pdpte(void* addr, const ::pdpte& pdpte, bool use_hyperspace)
 	{
 		if (!dirbase || !addr)
 			return false;
@@ -306,7 +306,7 @@ namespace nasa
 		return write_phys(addr, pdpte);
 	}
 
-	auto mem_ctx::get_pml4e(void* addr, bool use_hyperspace) -> std::pair<ppml4e, pml4e>
+	auto ptm_ctx::get_pml4e(void* addr, bool use_hyperspace) -> std::pair<ppml4e, pml4e>
 	{
 		if (!dirbase || !addr)
 			return { {}, {} };
@@ -318,7 +318,7 @@ namespace nasa
 		return { {}, {} };
 	}
 
-	bool mem_ctx::set_pml4e(void* addr, const ::pml4e& pml4e, bool use_hyperspace)
+	bool ptm_ctx::set_pml4e(void* addr, const ::pml4e& pml4e, bool use_hyperspace)
 	{
 		if (!dirbase || !addr)
 			return false;
@@ -331,7 +331,7 @@ namespace nasa
 		return write_phys(addr, pml4e);
 	}
 
-	auto mem_ctx::read_virtual(void* buffer, void* addr, std::size_t size) -> std::pair<void*, void*>
+	auto ptm_ctx::read_virtual(void* buffer, void* addr, std::size_t size) -> std::pair<void*, void*>
 	{
 		if (!buffer || !addr || !size || !dirbase)
 			return {};
@@ -373,7 +373,7 @@ namespace nasa
 		}
 	}
 
-	auto mem_ctx::write_virtual(void* buffer, void* addr, std::size_t size) -> std::pair<void*, void*>
+	auto ptm_ctx::write_virtual(void* buffer, void* addr, std::size_t size) -> std::pair<void*, void*>
 	{
 		if (!buffer || !addr || !size || !dirbase)
 			return {};
@@ -415,7 +415,7 @@ namespace nasa
 		}
 	}
 
-	bool mem_ctx::read_phys(void* buffer, void* addr, std::size_t size)
+	bool ptm_ctx::read_phys(void* buffer, void* addr, std::size_t size)
 	{
 		if (!buffer || !addr || !size)
 			return false;
@@ -432,7 +432,7 @@ namespace nasa
 		return true;
 	}
 
-	bool mem_ctx::write_phys(void* buffer, void* addr, std::size_t size)
+	bool ptm_ctx::write_phys(void* buffer, void* addr, std::size_t size)
 	{
 		if (!buffer || !addr || !size)
 			return false;
@@ -449,7 +449,7 @@ namespace nasa
 		return true;
 	}
 
-	void* mem_ctx::virt_to_phys(pt_entries& entries, void* addr)
+	void* ptm_ctx::virt_to_phys(pt_entries& entries, void* addr)
 	{
 		if (!addr || !dirbase)
 			return {};
